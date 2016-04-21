@@ -1,0 +1,109 @@
+c#
+
+Example 1)  Convert Json String to JObject so that tokens can be selected, Use this when such conversion is needed on fly without
+            deserializing into a typed object.Full deserialization does not happen here.
+            
+    public HttpResponseMessage ParseFileToDb([FromBody] string requestBody)
+        {
+
+            JObject request = JObject.Parse(requestBody);
+            var file_name = (string) request.SelectToken("file_name");
+            var load_type = (string)request.SelectToken("load_type");
+
+
+Example 2) Convert Json string into a strongly typed object (deserialize complete typed object or into a list)
+
+ public class RequestContent
+        {
+            [JsonProperty("file_name")]
+            public string FileName { get; set; }
+            [JsonProperty("load_type")]
+            public  string LoadType{ get; set; }
+        }
+
+      [HttpPost]
+        [Route("api/FileUpload/LoadFiletoDatabase", Name = ("LoadFiletoDatabase"))]
+        public async  Task<HttpResponseMessage> LoadFiletoDatabase([FromBody] string requestBody)
+        {
+            var requestParams = JsonConvert.DeserializeObject<RequestContent>(requestBody);
+
+            var parseResponse=  await CallParseandLoadAsync(requestParams);
+            if (parseResponse != null)
+            {
+                return Request.CreateResponse(HttpStatusCode.OK, "File parsing and load to DB completed");
+            }
+            else
+                return Request.CreateResponse(HttpStatusCode.InternalServerError,
+                    "Parse and Load Failed");
+        }
+        
+
+Example 3)  Convert typed object into a JObject that can be used with  .ToString() to convert into a Json String.
+
+  public async Task<string> CallParseandLoadAsync( RequestContent rc)
+        {
+            using (HttpClient httpClient = new HttpClient(new HttpClientHandler() { UseDefaultCredentials = true }))
+            {
+
+                var requestObject = new RequestContent() { FileName = rc.FileName, LoadType = rc.LoadType };
+                JObject requestContentJson = JObject.FromObject(requestObject);
+                //StringContent stringContent = new System.Net.Http.StringContent(jo.ToString(), Encoding.UTF8, "application/json");
+                var requestBody = new FormUrlEncodedContent(new[]
+                {
+                new KeyValuePair<string, string>("", requestContentJson.ToString())
+                });
+
+                HttpResponseMessage response =
+                    await httpClient.PostAsync("http://localhost:53320/api/parsefiletodb", requestBody);
+
+                response.EnsureSuccessStatusCode();
+                string responseBody = await response.Content.ReadAsStringAsync();
+                return responseBody;
+            }
+        }
+
+
+
+Javascript Code:
+
+
+Example 1)  Convert Json object to String
+
+ var postParameters = { file_name: responseJson.message, load_type: $("input:radio[name='uploadRadioOptions']:checked").val() }
+
+        var request = $.ajax({
+            dataType: "json",
+            url: GetLoadFiletoDatabaseUrl(),
+            method: "POST",
+            data: {
+                '': JSON.stringify(postParameters)
+    }
+        });
+
+
+Example 2) Convert String into Json
+
+var rfqContext = {
+        orderId: undefined,
+        clientOrderId: undefined,
+        baseCurrency: undefined,
+        termCurrency: undefined,
+        account: undefined,
+        dealType: undefined,
+        rfqType: undefined,
+        dealtCurrency: undefined,
+        contraCurrency: undefined,
+        diffCurrency: undefined,
+        winningProvider: undefined,
+        providers: [],
+        legs: [],
+        direction: undefined,
+        valueDate: undefined,
+        secCon: false,
+        swapType: undefined
+    };
+sessionStorage.setItem("RFQContext", JSON.stringify(rfqContext));
+
+var stringFromStorage = sessionStorage["RFQContext"];
+        if (stringFromStorage) {
+            rfqContextRecreated = JSON.parse(stringFromStorage);
